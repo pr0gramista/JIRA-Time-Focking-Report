@@ -1,5 +1,5 @@
 const nickname = "";
-const from = "2018-07-28";
+const from = "2018-07-31";
 const to = "2018-09-11";
 const atlassian = "your-atlassian";
 
@@ -7,27 +7,41 @@ const isMine = worklog => {
   return worklog.author.key === nickname;
 };
 
-const issueToCSV = issue => {
+const fetchIssueDetails = async (title, key) => {
+  return await fetch(`https://${atlassian}.atlassian.net/rest/api/2/issue/${key}/worklog`)
+    .then(response => response.json())
+    .then(data => {
+      const { worklogs } = data;
+      let summary = 0;
+      worklogs.filter(isMine).map(worklog => {
+        summary += worklog.timeSpentSeconds;
+      });
+      return `${title},${key},${summary}`;
+    })
+}
+
+const issueToCSV = async issue => {
   const key = issue.key;
   const worklog = issue.fields.worklog;
+  const title = issue.fields.summary;
   if (worklog.maxResults <= worklog.total) {
-    console.log(`Manually check ${key}!`);
+    return await fetchIssueDetails(title, key);
+  } else {
+    let summary = 0;
+    worklog.worklogs.filter(isMine).map(worklog => {
+      summary += worklog.timeSpentSeconds;
+    });
+    return `${title},${key},${summary}`;
   }
-
-  let summary = 0;
-
-  worklog.worklogs.filter(isMine).map(worklog => {
-    summary += worklog.timeSpentSeconds;
-  });
-  console.log(`${key},${summary}`);
 };
 
-const toCSV = data => {
-  data.issues.map(issue => issueToCSV(issue));
+const toCSV = async data => {
+  const rows = await Promise.all(data.issues.map(async issue => { return await issueToCSV(issue) }));
+  console.log(rows.join('\n'));
 };
 
 const requestBody = {
-  fields: ["worklog"],
+  fields: ["worklog", "summary"],
   jql: `worklogAuthor in ('${nickname}') and worklogDate >= '${from}' and worklogDate < '${to}'`,
   maxResults: 1000
 };
