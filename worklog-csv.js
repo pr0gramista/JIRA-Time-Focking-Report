@@ -8,7 +8,7 @@ const isMine = worklog => {
 };
 
 const fetchIssueDetails = async (title, key) => {
-  return await fetch(`https://${atlassian}.atlassian.net/rest/api/2/issue/${key}/worklog`)
+  return await fetch(`https://${atlassian}.atlassian.net/rest/api/2/issue/${key}/worklog`, { credentials: "include" })
     .then(response => response.json())
     .then(data => {
       const { worklogs } = data;
@@ -51,6 +51,7 @@ fetch(`https://${atlassian}.atlassian.net/rest/api/2/search`, {
     "Content-Type": "application/json; charset=utf-8"
   },
   method: "post",
+  credentials: "include",
   body: JSON.stringify(requestBody)
 })
   .then(response => response.json())
