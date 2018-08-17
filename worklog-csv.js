@@ -3,22 +3,38 @@ const from = "2018-07-31";
 const to = "2018-09-11";
 const atlassian = "your-atlassian";
 
+const dateFrom = new Date(from);
+const dateTo = new Date(to);
+
 const isMine = worklog => {
   return worklog.author.key === nickname;
 };
 
+const isRightDate = worklog => {
+  const date = new Date(worklog.started);
+  return (
+    date.getTime() < dateTo.getTime() && date.getTime() > dateFrom.getTime()
+  );
+};
+
 const fetchIssueDetails = async (title, key) => {
-  return await fetch(`https://${atlassian}.atlassian.net/rest/api/2/issue/${key}/worklog`, { credentials: "include" })
+  return await fetch(
+    `https://${atlassian}.atlassian.net/rest/api/2/issue/${key}/worklog`,
+    { credentials: "include" }
+  )
     .then(response => response.json())
     .then(data => {
       const { worklogs } = data;
       let summary = 0;
-      worklogs.filter(isMine).map(worklog => {
-        summary += worklog.timeSpentSeconds;
-      });
+      worklogs
+        .filter(isMine)
+        .filter(isRightDate)
+        .map(worklog => {
+          summary += worklog.timeSpentSeconds;
+        });
       return `${title},${key},${summary}`;
-    })
-}
+    });
+};
 
 const issueToCSV = async issue => {
   const key = issue.key;
@@ -28,16 +44,23 @@ const issueToCSV = async issue => {
     return await fetchIssueDetails(title, key);
   } else {
     let summary = 0;
-    worklog.worklogs.filter(isMine).map(worklog => {
-      summary += worklog.timeSpentSeconds;
-    });
+    worklog.worklogs
+      .filter(isMine)
+      .filter(isRightDate)
+      .map(worklog => {
+        summary += worklog.timeSpentSeconds;
+      });
     return `${title},${key},${summary}`;
   }
 };
 
 const toCSV = async data => {
-  const rows = await Promise.all(data.issues.map(async issue => { return await issueToCSV(issue) }));
-  console.log(rows.join('\n'));
+  const rows = await Promise.all(
+    data.issues.map(async issue => {
+      return await issueToCSV(issue);
+    })
+  );
+  console.log(rows.join("\n"));
 };
 
 const requestBody = {
